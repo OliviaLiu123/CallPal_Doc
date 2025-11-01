@@ -173,13 +173,15 @@ If firstname and lastname are duplicated, it will return 400
 
 #### Platform Parameter Comparison
 
+#### Platform Parameter Comparison
+
 | Parameter | Our Backend Input | Square | Acuity | Normalized Output format |
 |-----------|-------------------|--------|--------|-------------------|
 | **First Name** | ✅ **Required** <br> Accepts: `firstName`, `given_name`, `full_name` | ⚠️ Optional <br> (part of "at least one") <br> Field: `given_name` | ✅ **Required** <br> Field: `firstName` | `given_name` |
-| **Last Name** | ⭕ Optional <br> Accepts: `lastName`, `family_name`, `full_name` | ⚠️ Optional <br> (part of "at least one") <br> Field: `family_name` | ⭕ Optional <br> Field: `lastName` | `family_name` <br> (empty string if not provided) |
-| **Phone** | ✅ **Required** <br> Accepts: `phone`, `phone_number` | ⚠️ Optional <br> (part of "at least one") <br> Field: `phone_number` | ✅ **Required** <br> Field: `phone` | `phone_number` <br> (E.164 for Square, display format for Acuity) |
-| **Email** | ⭕ Optional <br> Accepts: `email`, `email_address` | ⚠️ Optional <br> (part of "at least one") <br> Field: `email_address` | ✅ **Required** <br> Field: `email` | `email_address` <br> (empty string or `contact@callpal.app` for Acuity) |
-| **Customer ID** | ❌ Not for input | Auto-generated （field:id） | phone number as customer id | `id` |
+| **Last Name** | ✅ **Required** <br> Accepts: `lastName`, `family_name`, `full_name` | ⚠️ Optional <br> (part of "at least one") <br> Field: `family_name` | ✅ **Required** <br> Field: `lastName` | `family_name` |
+| **Phone** | ✅ **Required** <br> Accepts: `phone`, `phone_number` | ⚠️ Optional <br> (part of "at least one") <br> Field: `phone_number` | ⭕ Optional <br> Field: `phone` | `phone_number` <br> (E.164 for Square, display format for Acuity) |
+| **Email** | ⭕ Optional <br> Accepts: `email`, `email_address` | ⚠️ Optional <br> (part of "at least one") <br> Field: `email_address` | ⭕ Optional <br> Field: `email` | `email_address` <br> (empty string or `contact@callpal.app` for Acuity) |
+| **Customer ID** | ❌ Not for input | Auto-generated <br> Field: `id` | Phone number as customer ID | `id` |
 | **Company Name** | ❌ Not supported | ⚠️ Optional <br> (part of "at least one") <br> Field: `company_name` | ❌ Not supported | ❌ Not included in output |
 | **Notes** | ⭕ Optional <br> Accepts: `notes` | ⭕ Optional <br> Field: `note` | ⭕ Optional <br> Field: `notes` | ❌ Not included in normalized output |
 
@@ -192,9 +194,11 @@ If firstname and lastname are duplicated, it will return 400
 **Note:** 
 
 **Square Special Rule:** Must provide at least ONE of: `given_name`, `family_name`, `company_name`, `email_address`, or `phone_number`
+
 **Acuity Special Rule:**
-- Must provide ALL THREE: `firstName`, `phone`, and `email`
+- Must provide BOTH: `firstName` and `lastName` (both required by Acuity API)
 - Our backend auto-fills `email` with `contact@callpal.app` if not provided
+- Our backend auto-fills `lastName` with `dummy-{random 3 digit}` if not provided
 
 **Our Backend Rule:**
 - Must provide BOTH: `firstName` and `phone`
@@ -255,7 +259,7 @@ our backend:
     "provider": "acuity",
     "data": {
         "given_name": "Kate",
-        "family_name": "null",
+        "family_name": "dummy_123",
         "phone_number": "(408) 777-2343",
         "email_address": "contact@callpal.app"
    }
@@ -264,7 +268,7 @@ Acuity platform:
 [
     {
     "firstName": "Kate",
-    "lastName": "null",
+    "lastName": "dummy_123",
     "email": "contact@callpal.app",
     "phone": "(408) 777-2343",
     "notes": ""
@@ -276,7 +280,7 @@ Acuity platform:
 **Key Differences:**
 - Square returns `id`, Acuity may not
 - Phone format: Square uses E.164, Acuity uses US display format
-- Empty values: Square uses `""`, Acuity uses `"null"` (string)
+- Empty values: Square uses `""`, Acuity uses `"dummy-{random 3 digits}"` (string)
 
 **API References:**
 - Square Create Customer: https://developer.squareup.com/reference/square/customers-api/create-customer
@@ -1197,44 +1201,14 @@ GET https://connect.squareup.com/v2/locations
 -  Includes service details: name, description, duration, price
 
 
-### 4.4.2 Parameters
+### 4.4.2 Platform Comparison
 
-#### Our Backend
+| Platform | Data Source | API Endpoint | Service Definition |
+|----------|-------------|--------------|-------------------|
+| **Square** | Catalog Items API | `/v2/catalog/list` | Service items with variations (different durations/prices) |
+| **Acuity** | Appointment Types API | `/api/v1/appointment-types` | Appointment types (single configuration per type) |
 
-**Required Fields:**
-- `agentId` * - AI Agent identifier (in URL path)
 
-**Optional Fields:**
-- None currently supported
-
-*\* = Required field*
-
-#### Platform Parameter Comparison
-
-| Parameter | Our Backend | Square | Acuity | Backend Processing |
-|-----------|-------------|--------|--------|-------------------|
-| **Agent ID** | ✅ Required <br> Field: `:agentId` | ❌ Not used <br> (uses access token) | ❌ Not used <br> (uses access token) | Used to fetch integration credentials |
-| **Object Types** | ❌ Not exposed | ⚙️ Fixed: `["ITEM"]` | ❌ Not applicable | Backend hardcodes for Square |
-| **Product Types** | ❌ Not exposed | ⚙️ Fixed: `["APPOINTMENTS_SERVICE"]` | ❌ Not applicable | Backend filters to appointment services only |
-
-**Legend:**
-- ✅ = Required / Supported
-- ⚙️ = Fixed/Hardcoded by backend
-- ❌ = Not applicable
-
-**Platform-Specific Behavior:**
-
-**Square:**
-- Uses Catalog API with search filters
-- Filters to `APPOINTMENTS_SERVICE` product type only
-- Returns service variations with pricing, duration, team member assignments
-- Can have multiple variations per service (e.g., "Haircut - Short" vs "Haircut - Long")
-
-**Acuity:**
-- Uses Appointment Types API
-- Appointment types = Services in Acuity
-- Returns service name, description, duration, price, category
-- Simpler structure than Square (no variations)
 
 ### 4.4.3 Response Examples
 
