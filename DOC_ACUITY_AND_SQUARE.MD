@@ -1667,26 +1667,141 @@ All endpoints require Bearer Token authentication
 
 #### Our Backend Query Parameters
 
+**Default Parameters (if none provided):**
+```javascript
+{
+    bookable_only: true,  // Only return bookable team members
+    limit: 6              // Maximum 6 results
+}
+```
+
 **Optional Parameters:**
 
-| Parameter | Type | Description | Square Support | Acuity Support |
-|-----------|------|-------------|----------------|----------------|
-| `location_id` | string | Filter team members by location | ✅ Yes | ❌ No |
-| `appointmentTypeID` | integer | Filter calendars by appointment type | ❌ No | ✅ Yes |
-| `limit` | integer | Maximum results to return | ✅ Yes | ❌ No |
-| `cursor` | string | Pagination cursor | ✅ Yes | ❌ No |
+| Parameter | Type | Description | Default Value |
+|-----------|------|-------------|---------------|
+| `bookable_only` | boolean | Only return bookable team members | `true` |
+| `limit` | integer | Maximum results to return | `6` |
+| `cursor` | string | Pagination cursor | - |
+| `location_id` | string | Filter by location | - |
+| `appointmentTypeID` | integer | Filter by appointment type | - |
+
+---
+
+#### Platform Parameter Comparison
+
+| Parameter | Our Backend | Square | Acuity | Unified Mapping |
+|-----------|-------------|--------|--------|-----------------|
+| **Location Filter** | `location_id` | `query.filter.location_ids` (array) | ❌ Not supported | Backend sends to Square only |
+| **Service Filter** | `appointmentTypeID` | ❌ Not supported | Filters via `calendarIDs` matching | Backend sends to Acuity only |
+| **Pagination Limit** | `limit` | `limit` | ❌ Not supported | Backend sends to Square only |
+| **Pagination Cursor** | `cursor` | `cursor` | ❌ Not supported | Backend sends to Square only |
+| **Bookability Filter** | `bookable_only` (default: true) | Backend filters by `is_bookable` field | All calendars bookable by default | Backend applies filter after API response |
 
 **Legend:**
 - ✅ = Supported
 - ❌ = Not supported
 
-**Parameter Processing:**
-- ⚠️ Backend validates `location_id` and `appointmentTypeID` to ensure they are not template variables (e.g., `{{location_id}}`)
-- If template variables detected, they are skipped and not sent to platform APIs
-- Square: Only returns team members who are `ACTIVE` and `is_bookable: true`
-- Acuity: Only returns calendars that support the specified `appointmentTypeID`
+---
+
+#### Unified Parameter Handling
+
+**For Square Integration:**
+```javascript
+// Backend transforms parameters for Square API
+
+// Step 1: Build search request
+const searchRequest = {
+    query: {
+        filter: {
+            status: "ACTIVE"
+        }
+    }
+};
+
+// Add location filter if provided
+if (options.location_id && !isTemplateVariable(options.location_id)) {
+    searchRequest.query.filter.location_ids = [options.location_id];
+}
+
+// Add pagination
+if (options.limit) {
+    searchRequest.limit = options.limit;  // Default: 6
+}
+if (options.cursor) {
+    searchRequest.cursor = options.cursor;
+}
+
+// Step 2: Call Square APIs (search + profiles)
+// Step 3: Backend filters by is_bookable if bookable_only=true
+```
+
+**For Acuity Integration:**
+```javascript
+// Backend transforms parameters for Acuity API
+
+// Step 1: Get all calendars (no parameters needed)
+const calendars = await fetch('/api/v1/calendars');
+
+// Step 2: If appointmentTypeID provided, filter calendars
+if (options.appointmentTypeID) {
+    const appointmentTypes = await fetch('/api/v1/appointment-types');
+    
+    // Filter calendars that support this appointment type
+    calendars = calendars.filter(calendar => {
+        const type = appointmentTypes.find(t => t.id === options.appointmentTypeID);
+        return type && type.calendarIDs.includes(calendar.id);
+    });
+}
+
+// Note: Acuity doesn't support limit/cursor pagination
+// Note: All Acuity calendars are considered bookable
+```
 
 ---
+
+#### Parameter Processing Rules
+
+**Template Variable Validation:**
+- ⚠️ Backend validates `location_id` and `appointmentTypeID` to ensure they are not template variables
+- If template variables like `{{location_id}}` are detected, they are removed from options
+- This prevents invalid API calls to Square/Acuity
+
+**Type Conversions:**
+- `bookable_only`: String `"true"`/`"false"` → Boolean
+- `limit`: String → Integer
+- `appointmentTypeID`: String → Integer
+
+**Platform-Specific Processing:**
+
+| Processing | Square | Acuity |
+|------------|--------|--------|
+| **Location filtering** | ✅ Sent directly to API | ❌ Parameter ignored |
+| **Service filtering** | ❌ Not applicable | ✅ Backend filters via `calendarIDs` matching |
+| **Pagination** | ✅ Sent directly to API | ❌ Backend returns all results |
+| **Bookability filtering** | ✅ Backend filters `is_bookable: true` | ⭕ All calendars bookable (no filtering needed) |
+
+**Legend:**
+- ✅ = Supported and processed
+- ❌ = Not supported
+- ⭕ = Not needed
+
+---
+
+#### Why This Unified Design?
+
+**Problem:** Square and Acuity have completely different filtering mechanisms:
+- Square supports location filtering but not service filtering
+- Acuity supports service filtering (via calendar matching) but not location filtering
+- Square has bookability flags, Acuity assumes all calendars are bookable
+- Square has pagination, Acuity returns all results
+
+**Solution:** Our backend provides a unified interface that:
+1. **Accepts all filter types** (`location_id`, `appointmentTypeID`, `limit`, `cursor`)
+2. **Routes parameters appropriately** based on active integration
+3. **Applies backend-side filtering** when platform doesn't support it natively
+4. **Returns consistent response format** regardless of platform
+
+This allows the same API call to work across both platforms without frontend code changes.
 
 
 
