@@ -102,6 +102,12 @@ Follow these steps to enable OAuth integration between **Acuity Scheduling** and
 > **Note:** In production, always use HTTPS for your redirect URI and never expose `CLIENT_SECRET` in frontend code.
 
 
+### References 
+- **[Square OAuth Guide](https://developer.squareup.com/docs/oauth-api/overview)**  
+ 
+- **[Acuity Scheduling API Authentication](https://developers.acuityscheduling.com/reference/authentication)**  
+
+
 ## 3. Unified Customer APIs
 The Unified Customer APIs provide a standardized interface for managing customer data across **Square** and **Acuity Scheduling** platforms.
 This layer abstracts the differences between provider-specific customer management systems, allowing you to use a single set of endpoints regardless of which platform is connected to your agent.
@@ -123,7 +129,7 @@ This layer abstracts the differences between provider-specific customer manageme
 
 ## Authentication
 
-All endpoints require Bearer Token authentication:
+All endpoints require Bearer Token authentication
 
 ## 3.1 Overview of Routes
 
@@ -1573,37 +1579,18 @@ Acuity Platform API
 ---
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ## 5.Unified Appointments APIs
 
 The Unified Appointments APIs provide a standardized interface for managing appointments and bookings across **Square Appointments** and **Acuity Scheduling** platforms. 
 This layer abstracts the differences between provider-specific APIs, allowing you to use a single set of endpoints regardless of which scheduling platform is connected to your agent.
 
+### **Summary**: 
 **Supported Operations:**
 
 #### Availability & Discovery
+1. **List Team Members** - Get bookable staff members and their profiles
+2. **Search Availability** - Find available time slots for appointments
 
-1. **Search Availability** - Find available time slots for appointments
-2. **List Team Members** - Get bookable staff members and their profiles
 
 #### Booking Management
 3. **Create Booking** - Book a new appointment
@@ -1623,9 +1610,303 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 | **Acuity** | `https://acuityscheduling.com` |
 
 ## Authentication
+All endpoints require Bearer Token authentication
+
+## 5.1 List Team Members
+
+### 5.1.1 Platform Comparison
+
+| Platform | Endpoint | Method |
+|----------|----------|--------|
+| **Our Backend** | `/team-members/:agentId` | GET |
+| **Square** | `/v2/team-members/search` + `/v2/bookings/team-member-booking-profiles` | POST + GET |
+| **Acuity** | `/api/v1/calendars` | GET |
+
+**Note:** 
+- Our backend requires `agentId` in URL path
+- Square: Requires **two API calls** to get complete team member booking profiles
+- Acuity: In Acuity, **calendars represent team members/staff** - each calendar is a bookable resource
+
+---
+
+### 5.1.2 Key Differences Summary
+
+| Aspect | Square | Acuity |
+|--------|--------|--------|
+| **Concept** | Team Members (employees) | Calendars (resources/staff) |
+| **API Calls Required** | 2 calls (search + profiles) | 1-2 calls (calendars + optional types) |
+| **Filtering by Location** | ✅ `location_ids` in search query | ❌ Not supported |
+| **Filtering by Service** | ❌ Not supported | ✅ `appointmentTypeID` + `calendarIDs` matching |
+| **Bookability Check** | `is_bookable` field in profile | All calendars are bookable by default |
+| **Pagination** | ✅ Cursor-based (`limit`, `cursor`) | ❌ No pagination |
+| **Default Limit** | 6 (configurable) | All returned (no limit) |
+| **Response Time** | Slower (2 API calls + filtering) | Faster (1-2 API calls) |
+| **Name Field** | `display_name` from booking profile | `name` from calendar |
+
+**Square's Two-Step Process:**
+1. **Step 1:** Call `/v2/team-members/search` to get team member details (ID, name, status)
+   - Can filter by `location_ids`
+   - Supports pagination with `limit` and `cursor`
+2. **Step 2:** Call `/v2/bookings/team-member-booking-profiles` to get booking settings
+   - Gets `display_name` and `is_bookable` status
+   - No filtering at API level (gets all profiles)
+3. **Step 3:** Backend combines data using Map lookup
+   - Creates `team_member_id` → `booking_profile` mapping
+   - Filters to only include where `is_bookable: true`
+
+**Acuity's Calendar-Based Process:**
+1. **Step 1:** Call `/api/v1/calendars` to get all calendars (team members)
+   - Returns all calendars (no filtering at API level)
+2. **Step 2 (Optional):** If `appointmentTypeID` provided, call `/api/v1/appointment-types`
+   - Gets all appointment types with their `calendarIDs` arrays
+3. **Step 3:** Backend filters calendars
+   - For each calendar, checks if `appointmentTypeID` is in its `calendarIDs` array
+   - Only includes matching calendars
+
+### 5.1.3 Parameters
+
+#### Our Backend Query Parameters
+
+**Optional Parameters:**
+
+| Parameter | Type | Description | Square Support | Acuity Support |
+|-----------|------|-------------|----------------|----------------|
+| `location_id` | string | Filter team members by location | ✅ Yes | ❌ No |
+| `appointmentTypeID` | integer | Filter calendars by appointment type | ❌ No | ✅ Yes |
+| `limit` | integer | Maximum results to return | ✅ Yes | ❌ No |
+| `cursor` | string | Pagination cursor | ✅ Yes | ❌ No |
+
+**Legend:**
+- ✅ = Supported
+- ❌ = Not supported
+
+**Parameter Processing:**
+- ⚠️ Backend validates `location_id` and `appointmentTypeID` to ensure they are not template variables (e.g., `{{location_id}}`)
+- If template variables detected, they are skipped and not sent to platform APIs
+- Square: Only returns team members who are `ACTIVE` and `is_bookable: true`
+- Acuity: Only returns calendars that support the specified `appointmentTypeID`
+
+---
 
 
 
+### 5.1.4 Response Examples
+
+**Our Backend (Square) vs Square Platform API**
+```json
+Our Backend (Square)
+{
+    "status": "success",
+    "data": {
+        "specialists": [
+            {
+                "specialist_id": "TM5ctPKDQdXyuMpe",
+                "name": "Alice Wong"
+            },
+            {
+                "specialist_id": "TMwWZ6ga86JwL5aW",
+                "name": " "
+            }
+        ],
+        "cursor": null,
+        "errors": []
+    }
+}
+
+Square Platform API 
+
+Step1 : Team members search 
+{
+  "team_members": [
+    {
+      "id": "TM5ctPKDQdXyuMpe",
+      "reference_id": "",
+      "is_owner": false,
+      "status": "ACTIVE",
+      "given_name": "Alice",
+      "family_name": "Wong",
+      "email_address": "xx.xx@gmail.com",
+      "created_at": "2025-09-29T18:34:13Z",
+      "updated_at": "2025-09-30T06:22:15Z",
+      "assigned_locations": {
+        "assignment_type": "EXPLICIT_LOCATIONS",
+        "location_ids": [
+          "L5J0TJ9CM5A7D"
+        ]
+      },
+      "merchant_id": "ML37W5FN1K9A8",
+      "wage_setting": {
+        "team_member_id": "TM5ctPKDQdXyuMpe",
+        "job_assignments": [
+          {
+            "job_title": "Stlylist",
+            "pay_type": "NONE",
+            "job_id": "uoehX5TVoDT9FyUQbUT2YhrS"
+          }
+        ],
+        "is_overtime_exempt": false,
+        "version": 2,
+        "created_at": "2025-09-29T18:34:14+00:00",
+        "updated_at": "2025-09-29T18:34:17+00:00"
+      }
+    },
+    {
+      "id": "TMwWZ6ga86JwL5aW",
+      "is_owner": true,
+      "status": "ACTIVE",
+      "given_name": "",
+      "family_name": "",
+      "email_address": "xx.xx1@gmail.com",
+      "created_at": "2025-09-12T19:42:43Z",
+      "updated_at": "2025-09-29T18:32:26Z",
+      "assigned_locations": {
+        "assignment_type": "ALL_CURRENT_AND_FUTURE_LOCATIONS"
+      },
+      "merchant_id": "ML37W5FN1K9A8",
+      "wage_setting": {
+        "team_member_id": "TMwWZ6ga86JwL5aW",
+        "job_assignments": [
+          {
+            "job_title": "Stylist123",
+            "pay_type": "NONE",
+            "job_id": "v6Tw9v13ktcShEDzLKhMHd2Y"
+          }
+        ],
+        "is_overtime_exempt": false,
+        "version": 2,
+        "created_at": "2025-09-12T19:42:44+00:00",
+        "updated_at": "2025-09-16T02:58:49+00:00"
+      }
+    }
+  ]
+}
+
+Step2 (Team Members Profiles)
+{
+  "team_member_booking_profiles": [
+    {
+      "team_member_id": "TMwWZ6ga86JwL5aW",
+      "display_name": " ",
+      "is_bookable": true
+    },
+    {
+      "team_member_id": "TM5ctPKDQdXyuMpe",
+      "display_name": "Alice Wong",
+      "is_bookable": true
+    }
+  ],
+  "errors": []
+}
+
+```
+
+
+---
+
+**Our Backend (Acuity) vs Acuity Platform API**
+```json
+Our Backend (Acuity)
+{
+    "status": "success",
+    "data": {
+        "specialists": [
+            {
+                "specialist_id": 12874092,
+                "name": "Lucy"
+            },
+            {
+                "specialist_id": 12874002,
+                "name": "Lynn Liu"
+            }
+        ],
+        "cursor": null,
+        "errors": []
+    }
+}
+
+Acuity Platform API (Calendars)
+[
+    {
+        "id": 12874092,
+        "name": "Lucy",
+        "email": "",
+        "replyTo": "xx123.xxiu@gmail.com",
+        "description": "stylist",
+        "location": "",
+        "timezone": "America/Los_Angeles",
+        "thumbnail": false,
+        "image": false
+    },
+    {
+        "id": 12874002,
+        "name": "Lynn Liu",
+        "email": "",
+        "replyTo": "xx123.xx@gmail.com",
+        "description": "",
+        "location": "",
+        "timezone": "America/Los_Angeles",
+        "thumbnail": false,
+        "image": false
+    }
+]
+
+```
+
+**Transformation Logic (Acuity):**
+```javascript
+// If appointmentTypeID provided, filter calendars
+if (options.appointmentTypeID) {
+    // Get appointment types for each calendar
+    const appointmentTypes = await this.getAppointmentTypes(accessToken, calendar.id);
+    
+    // Check if calendar supports this appointment type
+    const hasAppointmentType = appointmentTypes.some(
+        type => type.id === parseInt(options.appointmentTypeID)
+    );
+    
+    if (!hasAppointmentType) {
+        continue; // Skip this calendar
+    }
+}
+
+specialists.push({
+    specialist_id: calendar.id,
+    name: calendar.name
+});
+```
+
+---
+
+### 5.1.5 Key Differences
+
+| Aspect | Square | Acuity |
+|--------|--------|--------|
+| **Concept** | Team Members (employees) | Calendars (resources) |
+| **API Calls** | 2 calls required (search + profiles) | 1 call (calendars) |
+| **Filtering** | By `location_id` | By `appointmentTypeID` |
+| **Bookability Check** | `is_bookable` field | Check `calendarIDs` in appointment types |
+| **Pagination** | ✅ Cursor-based | ❌ No pagination |
+| **Response Time** | Slower (2 API calls) | Faster (1 API call) |
+
+**Note:** 
+
+**Square's Two-Step Process:**
+1. First call gets team member details (ID, name, contact, status)
+2. Second call gets booking-specific settings (display name, bookability)
+3. Backend combines and filters to only return bookable members
+
+**Acuity's Calendar Model:**
+- Each calendar = one staff member/resource
+- Calendars have their own schedules and availability
+- An appointment type can be assigned to multiple calendars
+- Filtering by `appointmentTypeID` finds which staff can provide that service
+
+---
+
+**API References:**
+- Square Team Members Search: https://developer.squareup.com/reference/square/team-api/search-team-members
+- Square Booking Profiles: https://developer.squareup.com/reference/square/bookings-api/list-team-member-booking-profiles
+- Acuity Calendars: https://developers.acuityscheduling.com/reference/calendars
 
 
 
@@ -1656,9 +1937,4 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 
 
 
-### 10. 🔗 External Documentation
-
-- **[Square OAuth Guide](https://developer.squareup.com/docs/oauth-api/overview)**  
- 
-- **[Acuity Scheduling API Authentication](https://developers.acuityscheduling.com/reference/authentication)**  
  
