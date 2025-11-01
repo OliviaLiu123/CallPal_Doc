@@ -1992,31 +1992,7 @@ specialists.push({
 
 ---
 
-### 5.1.5 Key Differences
 
-| Aspect | Square | Acuity |
-|--------|--------|--------|
-| **Concept** | Team Members (employees) | Calendars (resources) |
-| **API Calls** | 2 calls required (search + profiles) | 1 call (calendars) |
-| **Filtering** | By `location_id` | By `appointmentTypeID` |
-| **Bookability Check** | `is_bookable` field | Check `calendarIDs` in appointment types |
-| **Pagination** | ✅ Cursor-based | ❌ No pagination |
-| **Response Time** | Slower (2 API calls) | Faster (1 API call) |
-
-**Note:** 
-
-**Square's Two-Step Process:**
-1. First call gets team member details (ID, name, contact, status)
-2. Second call gets booking-specific settings (display name, bookability)
-3. Backend combines and filters to only return bookable members
-
-**Acuity's Calendar Model:**
-- Each calendar = one staff member/resource
-- Calendars have their own schedules and availability
-- An appointment type can be assigned to multiple calendars
-- Filtering by `appointmentTypeID` finds which staff can provide that service
-
----
 
 **API References:**
 - Square Team Members Search: https://developer.squareup.com/reference/square/team-api/search-team-members
