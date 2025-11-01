@@ -1113,79 +1113,6 @@ GET https://connect.squareup.com/v2/locations
 
 ### 4.3.3 Response Examples
 
-**Our Backend (Square) vs Square API **
-```json
-{
-    "status": "success",
-    "data": {
-        "locations": [
-            {
-                "id": "LVTFQSKY6DKB3",
-                "name": "dublin_store",
-                "street": "3768 Fallon Rd",
-                "city": "Walnut Creek",
-                "state": "CA",
-                "timezone": "America/Los_Angeles"
-            },
-            {
-                "id": "L5J0TJ9CM5A7D",
-                "name": "CallPal",
-                "street": "7446 San Ramon Rd",
-                "city": "Dublin",
-                "state": "CA",
-                "timezone": "America/Los_Angeles"
-            }
-        ],
-        "totalCount": 2
-    }
-}
-
-```
-
-**Our Backend (Acuity)**
-```json
-{
-    "status": "success",
-    "data": {
-        "locations": [
-            {
-                "id": "acuity-cmhfadqzk0005ry773lig0x3p",
-                "name": "Anu's Beautique, Dublin",
-                "street": "6046 Dougherty Rd",
-                "city": "Dublin",
-                "state": "CA",
-                "timezone": "UTC"
-            }
-        ],
-        "totalCount": 1
-    }
-}
-```
-
-**Error Response - Missing Zipcode**
-```json
-{
-  "success": false,
-  "error": "Zipcode is required"
-}
-```
-
-**Error Response - No Locations Found**
-```json
-{
-  "status": "error",
-  "message": "No locations found",
-  "data": {
-    "locations": [],
-    "totalCount": 0
-  }
-}
-```
-
-
-
----
-
 ## 4.4 List Service Types
 
 ### 4.4.1 Endpoint Overview
@@ -1197,16 +1124,49 @@ GET https://connect.squareup.com/v2/locations
 
 **Key Features:**
 -  Returns all services from active integration (Square or Acuity)
--  Standardized response format across both platforms
+-  **Standardized response format** across both platforms
 -  Includes service details: name, description, duration, price
+-  Handles platform-specific differences transparently
 
+---
 
 ### 4.4.2 Platform Comparison
 
 | Platform | Data Source | API Endpoint | Service Definition |
 |----------|-------------|--------------|-------------------|
-| **Square** | Catalog Items API | `/v2/catalog/list` | Service items with variations (different durations/prices) |
-| **Acuity** | Appointment Types API | `/api/v1/appointment-types` | Appointment types (single configuration per type) |
+| **Square** | Catalog Items API | `/v2/catalog/list` | Service items with **variations** (different durations/prices for same service) |
+| **Acuity** | Appointment Types API | `/api/v1/appointment-types` | Appointment types (**NO variation concept** - each type is independent) |
+
+**Key Differences:**
+
+| Aspect | Square | Acuity |
+|--------|--------|--------|
+| **Variation Support** | ✅ Has `service_variation_id` and `service_variation_version` | ❌ **No variation concept** - only `appointmentTypeId` |
+| **Price Format** | Cents (integer) - needs conversion to dollars | Dollars (string) - already in correct format |
+| **Duration Format** | Milliseconds - needs conversion to minutes | Minutes - already in correct format |
+| **Structure** | Nested (Items → Variations → Data) | Flat (Appointment Types) |
+| **Version Control** | ✅ Each variation has a version number | ❌ No versioning concept |
+
+**Note:** 
+
+**Critical Design Decision:**
+
+Since Acuity does **NOT** have the concept of service variations, we use `appointmentTypeId` to populate multiple fields in our unified response:
+
+| Field | Square Source | Acuity Source | Mapping Strategy |
+|-------|--------------|---------------|------------------|
+| `id` | `item.id` | `appointmentType.id` | Direct mapping |
+| `service_variation_id` | `variation.id` | `appointmentType.id` | ⚠️ **Same as `id`** |
+| `service_variation_version` | `variation.version` | `null` | ⚠️ **Always null** |
+| `selected_service_type_id` | `item.id` | `appointmentType.id` | Direct mapping |
+| `selected_service_variation_id` | `variation.id` | `appointmentType.id` | ⚠️ **Same as `id`** |
+
+This mapping strategy ensures that:
+- ✅ Booking APIs work consistently across both platforms (they require `service_variation_id`)
+- ✅ Frontend/AI Agent can use the same code for both Square and Acuity
+- ✅ No conditional logic needed based on platform type
+
+---
 
 
 
@@ -1499,7 +1459,10 @@ Our Backend (Acuity)
             "duration": 50,
             "price": "45.00",
             "category": "",
-            "source": "acuity"
+            "source": "acuity",
+            "selected_service_type_id": 84431042,
+            "selected_service_variation_id": 84431042,
+            "selected_service_variation_version": null
         },
         {
             "id": 84431573,
@@ -1508,7 +1471,10 @@ Our Backend (Acuity)
             "duration": 30,
             "price": "55.00",
             "category": "",
-            "source": "acuity"
+            "source": "acuity",
+            "selected_service_type_id": 84431573,
+            "selected_service_variation_id": 84431573,
+            "selected_service_variation_version": null
         },
         {
             "id": 84431588,
@@ -1517,15 +1483,92 @@ Our Backend (Acuity)
             "duration": 60,
             "price": "120.00",
             "category": "",
-            "source": "acuity"
+            "source": "acuity",
+            "selected_service_type_id": 84431588,
+            "selected_service_variation_id": 84431588,
+            "selected_service_variation_version": null
         }
     ]
 }
+
+Acuity Platform API
+[
+    {
+        "id": 84431042,
+        "name": "men's haircut",
+        "active": true,
+        "description": "",
+        "duration": 50,
+        "price": "45.00",
+        "category": "",
+        "color": "#ED7087",
+        "private": false,
+        "type": "service",
+        "image": "",
+        "classSize": null,
+        "paddingAfter": 0,
+        "paddingBefore": 0,
+        "calendarIDs": [
+            12874092,
+            12874002
+        ],
+        "addonIDs": [],
+        "formIDs": [],
+        "schedulingUrl": "https://app.acuityscheduling.com/schedule.php?owner=37197912&appointmentType=84431042"
+    },
+    {
+        "id": 84431573,
+        "name": "women's haircut",
+        "active": true,
+        "description": "",
+        "duration": 30,
+        "price": "55.00",
+        "category": "",
+        "color": "#B7A6EB",
+        "private": false,
+        "type": "service",
+        "image": "",
+        "classSize": null,
+        "paddingAfter": 0,
+        "paddingBefore": 0,
+        "calendarIDs": [
+            12874092,
+            12874002
+        ],
+        "addonIDs": [],
+        "formIDs": [],
+        "schedulingUrl": "https://app.acuityscheduling.com/schedule.php?owner=37197912&appointmentType=84431573"
+    },
+    {
+        "id": 84431588,
+        "name": "color",
+        "active": true,
+        "description": "",
+        "duration": 60,
+        "price": "120.00",
+        "category": "",
+        "color": "#B7A6EB",
+        "private": false,
+        "type": "service",
+        "image": "",
+        "classSize": null,
+        "paddingAfter": 0,
+        "paddingBefore": 0,
+        "calendarIDs": [
+            12874002
+        ],
+        "addonIDs": [],
+        "formIDs": [],
+        "schedulingUrl": "https://app.acuityscheduling.com/schedule.php?owner=37197912&appointmentType=84431588"
+    }
+]
+
 ```
 
 **API References:**
 - Square Catalog API: https://developer.squareup.com/reference/square_2025-08-20/catalog-api
-- Acuity Appointment Types: https://developers.acuityscheduling.com/reference/appointment-types
+- Acuity Appointment Types:https://developers.acuityscheduling.com/reference/appointment-types
+
 
 ---
 
