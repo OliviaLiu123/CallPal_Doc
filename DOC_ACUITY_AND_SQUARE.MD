@@ -3,12 +3,12 @@
 ## Document Purpose
 This document provides a detailed, side-by-side comparsion of the Acuity Scheduling and Square Appointments APIs.It is designed to help developers understand the key difference in authetication, API structure, request/response bodies, and integration patterns when working with either platform.
 
-### 1. Overview
 
 
-## 2. Authentication & Setup Comparison
+
+## 1. Authentication & Setup Comparison
 Side-by-side comparison of authentication methods and initial setup requirements
-#### 2.1 🔄 OAuth Feature Comparison
+#### 1.1 🔄 OAuth Feature Comparison
 
 | **Feature** | **Square** | **Acuity (OAuth)** |
 |--------------|-------------|--------------------|
@@ -23,28 +23,28 @@ Side-by-side comparison of authentication methods and initial setup requirements
 | **Redirect URI (our app)** | `${SERVER_URL}/square-callback` | `${SERVER_URL}/acuity-callback` |
 
 
-#### 2.2 OAuth Flow
+#### 1.2 OAuth Flow
 Both square and acuity services follow the standard OAuth 2.0 flow:
-##### 1. **Generate Authorization URL**
-##### 2. **User Login & Consent (Privider Page)** 
+##### a. **Generate Authorization URL**
+##### b. **User Login & Consent (Privider Page)** 
 > The user is redirected to **Square/Acuity** to log in and approve CallPal's requested scopes.
-##### 3. **Callback with Authorization Code**
+##### c. **Callback with Authorization Code**
 > Provider redicects back to our **backend callback** with `code` and `state`:
 - Square:`POST /square-callback` 
 - Acuity:`POST /acuity-callback`    
-##### 4. **Token Excahnge** 
+##### d. **Token Excahnge** 
 > Backend exchanges `code` for tokens at `/oauth2/token` using `client_id` + `client_secret`.
 
-##### 5. **Secure Storage**
+##### e. **Secure Storage**
 > **Encrypt** tokens using AES-256-CBC and store them (per-agent) in our database.
 
-##### 6. **API Calls**
+##### f. **API Calls**
 > Subsequent calls to provider APIs include `Authorization: Bearer <access_token>`.
-##### 7. **Token Refresh** (if access token expires)
+##### g. **Token Refresh** (if access token expires)
 > Backend uses`grant_type=refresh_token` to obtain a new access token without user interaction.
 
 
-#### 2.3 How to Setup in Acuity Platform
+#### 1.3 How to Setup in Acuity Platform
 Follow these steps to enable OAuth integration between **Acuity Scheduling** and **CallPal**
 1. **Open the Acuity OAuth Registration page**
 >    Go to [https://acuityscheduling.com/oauth2/register](https://acuityscheduling.com/oauth2/register).  
@@ -108,7 +108,7 @@ Follow these steps to enable OAuth integration between **Acuity Scheduling** and
 - **[Acuity Scheduling API Authentication](https://developers.acuityscheduling.com/reference/authentication)**  
 
 
-## 3. Unified Customer APIs
+## 2.Unified Customer APIs
 The Unified Customer APIs provide a standardized interface for managing customer data across **Square** and **Acuity Scheduling** platforms.
 This layer abstracts the differences between provider-specific customer management systems, allowing you to use a single set of endpoints regardless of which platform is connected to your agent.
 **Supported Operations:**
@@ -128,7 +128,7 @@ This layer abstracts the differences between provider-specific customer manageme
 | **Acuity** | `https://acuityscheduling.com` |
 
 
-## 3.1 Overview of Routes
+## 2.1 Overview of Routes
 
 | # | Backend Route | Method | Description | Returns |
 |---|---------------|--------|-------------|---------|
@@ -143,9 +143,9 @@ This layer abstracts the differences between provider-specific customer manageme
 - Search endpoints limited to 1 result (backend uses `.slice(0, 1)`)
 ---
 
-## 3.2 Create Customer
+## 2.2 Create Customer
 
-### 3.2.1 Platform Comparison
+### 2.2.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -164,7 +164,7 @@ If firstname and lastname are duplicated, it will return 400
 - last name: Square uses `""`, Acuity uses `"dummy-{random 3 digits}"` (string)
 - email : Square uses `""`, Acuity uses `"contact@callpal.app"` (temporary)
 
-### 3.2.2 Parameters
+### 2.2.2 Parameters
 
 #### Our Backend 
 
@@ -214,7 +214,7 @@ If firstname and lastname are duplicated, it will return 400
 
 
 
-### 3.2.3 Response Example
+### 2.2.3 Response Example
  **Our backend vs Square**
  ```
  our backend 
@@ -292,9 +292,9 @@ Acuity platform:
 - Acuity Create Client: https://developers.acuityscheduling.com/reference/post-clients
 ---
 
-## 3.3 Search Customers
+## 2.3 Search Customers
 
-### 3.3.1 Platform Comparison
+### 2.3.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -304,7 +304,7 @@ Acuity platform:
 
 **Note:** Our backend requires `agentId` in URL path; search filters passed as query parameters.
 
-### 3.3.2 Parameters
+### 2.3.2 Parameters
 
 #### Our Backend Query Parameter Handling
 
@@ -395,7 +395,7 @@ GET /search/AGENT_ID?phone=%2B14087775678
 - **Phone format**: Backend auto-converts to digits only (`4087775678`)
 - Returns all matching results (no pagination)
 
-### 3.3.3 Response Examples
+### 2.3.3 Response Examples
 
 **Our Backend vs Square**
 ```json
@@ -527,9 +527,9 @@ GET /search/AGENT_ID?phone=%2B14087775678
 
 ---
 
-## 3.4 Search by Phone
+## 2.4 Search by Phone
 
-### 3.4.1 Platform Comparison
+### 2.4.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -545,7 +545,7 @@ GET /search/AGENT_ID?phone=%2B14087775678
 - Square includes `id` and metadata, Acuity includes numeric `id`
 - Empty values: Square uses `""`, Acuity uses `"null"` (string) or `contact@callpal.app` for email
 
-### 3.4.2 Parameters
+### 2.4.2 Parameters
 
 #### Our Backend 
 
@@ -590,7 +590,7 @@ GET /search/AGENT_ID?phone=%2B14087775678
 - Backend automatically removes `+1` prefix when calling Acuity
 
 
-### 3.4.3 Response Examples
+### 2.4.3 Response Examples
 
 **Our Backend vs Square**
 ```json
@@ -685,9 +685,9 @@ GET /search/AGENT_ID?phone=%2B14087775678
 
 ---
 
-## 3.5 Retrieve Customer by ID
+## 2.5 Retrieve Customer by ID
 
-### 3.5.1 Platform Comparison
+### 2.5.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -705,7 +705,7 @@ GET /search/AGENT_ID?phone=%2B14087775678
 - Square includes `id`, Acuity may not include `id` in normalized output
 - Acuity retrieval is actually a search operation (workaround for missing feature)
 
-### 3.5.2 Parameters
+### 2.5.2 Parameters
 
 #### Our Backend 
 
@@ -760,7 +760,7 @@ GET /api/customers/retrieve/AGENT_ID/%2B14087775678
 - Backend converts E.164 phone (`+14087775678`) to digits-only format (`4087775678`)
 - Returns first matching customer from search results
 
-### 3.5.3 Response Examples
+### 2.5.3 Response Examples
 
 **Our Backend vs Square**
 ```json
@@ -855,7 +855,7 @@ GET /api/customers/retrieve/AGENT_ID/%2B14087775678
 
 
 
-## 4. Business Catalog APIs
+## 3. Business Catalog APIs
 
 The Business Catalog APIs provide a standardized interface for discovering and browsing business information across **Square** and **Acuity Scheduling** platforms.
 Unlike the Customer APIs, these endpoints **do not normalize input** - they return unified output formats regardless of which platform is connected.
@@ -877,7 +877,7 @@ Unlike the Customer APIs, these endpoints **do not normalize input** - they retu
 | **Square** | `https://connect.squareup.com` |
 | **Acuity** | `https://acuityscheduling.com` |
 
-## 4.1 Overview of Routes
+## 3.1 Overview of Routes
 
 | # | Backend Route | Method | Description | Returns |
 |---|---------------|--------|-------------|---------|
@@ -890,9 +890,9 @@ Unlike the Customer APIs, these endpoints **do not normalize input** - they retu
 - All responses include `status` field and unified `data` wrapper
 ---
 
-## 4.2 List All Locations
+## 3.2 List All Locations
 
-### 4.2.1 Platform Comparison
+### 3.2.1 Platform Comparison
 
 | Platform | Endpoint | Method | Note |
 |----------|----------|--------|------|
@@ -911,7 +911,7 @@ Unlike the Customer APIs, these endpoints **do not normalize input** - they retu
     - Coordinates are derived from the business address using Google Maps Geocoding API
     
 
-### 4.2.3 Parameters
+### 3.2.2 Parameters
 **Platform-Specific Behavior:**
 
 **Square:**
@@ -927,7 +927,7 @@ Unlike the Customer APIs, these endpoints **do not normalize input** - they retu
 - Always returns single location
 - Location ID format: `acuity-{businessId}`
 
-### 4.2.4 Response Examples
+### 3.2.3 Response Examples
 
 **Our Backend  VS Square **
 ```
@@ -1059,9 +1059,9 @@ Our Backend (Acuity)
 **Square API Reference:** https://developer.squareup.com/reference/square/locations-api/list-locations
 
 
-## 4.3 Search Nearby Locations
+## 3.3 Search Nearby Locations
 
-### 4.3.1 Endpoint Overview
+### 3.3.1 Endpoint Overview
 
 | Our Backend | `/agent/:agentId/locations/search/nearby` | GET |
 |-------------|-------------------------------------------|-----|
@@ -1074,7 +1074,7 @@ Our Backend (Acuity)
 -  Returns top 3 nearest locations, sorted by distance
 -  Works with both Square (multiple locations) and Acuity (single location)
 
-### 4.3.2 Platform API Calls
+### 3.3.2 Platform API Calls
 
 #### Backend Process Flow
 ```javascript
@@ -1089,7 +1089,7 @@ GET https://connect.squareup.com/v2/locations
 // Constructs location from business.address
 
 ```
-### 4.3.3 Response Examples
+### 3.3.3 Response Examples
 **Our Backend (Square) VS Square platform API**
 ```
 Our Backend (Square)
@@ -1270,9 +1270,9 @@ Acuity does not have Location API
 
 
 
-## 4.4 List Service Types
+## 3.4 List Service Types
 
-### 4.4.1 Endpoint Overview
+### 3.4.1 Endpoint Overview
 
 | Our Backend | `/agent/:agentId/services/list` | GET |
 |-------------|--------------------------------|-----|
@@ -1287,7 +1287,7 @@ Acuity does not have Location API
 
 ---
 
-### 4.4.2 Platform Comparison
+### 3.4.2 Platform Comparison
 
 | Platform | Data Source | API Endpoint | Service Definition |
 |----------|-------------|--------------|-------------------|
@@ -1327,7 +1327,7 @@ This mapping strategy ensures that:
 
 
 
-### 4.4.3 Response Examples
+### 3.4.3 Response Examples
 
 **Our Backend (Square) VS Square platform API**
 ```json
@@ -1730,7 +1730,7 @@ Acuity Platform API
 ---
 
 
-## 5.Unified Appointments APIs
+## 4.Unified Appointments APIs
 
 The Unified Appointments APIs provide a standardized interface for managing appointments and bookings across **Square Appointments** and **Acuity Scheduling** platforms. 
 This layer abstracts the differences between provider-specific APIs, allowing you to use a single set of endpoints regardless of which scheduling platform is connected to your agent.
@@ -1759,7 +1759,7 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 | **Acuity** | `https://acuityscheduling.com` |
 
 
-## 5.1 Overview of Routes
+## 4.1 Overview of Routes
 
 | # | Backend Route | Method | Description | Returns |
 |---|---------------|--------|-------------|---------|
@@ -1782,9 +1782,9 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 
 ---
 
-## 5.2 List Team Members
+## 4.2 List Team Members
 
-### 5.2.1 Platform Comparison
+### 4.2.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -1799,7 +1799,7 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 
 ---
 
-### 5.2.2 Key Differences Summary
+### 4.2.2 Key Differences Summary
 
 | Aspect | Square | Acuity |
 |--------|--------|--------|
@@ -1833,7 +1833,7 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
    - For each calendar, checks if `appointmentTypeID` is in its `calendarIDs` array
    - Only includes matching calendars
 
-### 5.2.3 Response Format & Unification
+### 4.2.3 Response Format & Unification
 
 #### Unified Response Structure
 
@@ -2005,7 +2005,7 @@ Acuity uses **one API call** with a flat structure:
 
 ---
 
-### 5.2.4 Parameters
+### 4.2.4 Parameters
 
 **Optional Query Parameters:**
 
@@ -2021,7 +2021,7 @@ Acuity uses **one API call** with a flat structure:
 - Type conversions applied automatically (`limit` → integer, etc.)
 - Platform-specific parameters only sent to supporting platform
 
-### 5.2.5 Response Examples
+### 4.2.5 Response Examples
 
 **Our Backend (Square) vs Square Platform API**
 ```json
@@ -2185,6 +2185,361 @@ Acuity Platform API (Calendars)
 
 
 ---
+
+
+## 4.3 Search Available Time Slots
+
+### 4.3.1 Platform Comparison
+
+| Platform | Endpoint | Method |
+|----------|----------|--------|
+| **Our Backend** | `/search-availability/:agentId` | GET |
+| **Square** | `/v2/bookings/availability/search` | POST |
+| **Acuity** | `/api/v1/availability/times` | GET |
+
+**Note:** 
+- Our backend requires `agentId` in URL path
+- Square: Requires single POST call with complex filter object
+- Acuity: Requires **multiple GET calls** (one per day in date range)
+
+---
+
+### 4.3.2 Key Differences Summary
+
+| Aspect | Square | Acuity |
+|--------|--------|--------|
+| **Request Type** | Single POST request | Multiple GET requests (one per day) |
+| **Date Range** | `start_at_range` (start_at, end_at) | Loop through each day individually |
+| **Service ID** | `service_variation_id` | `appointmentTypeID` |
+| **Team Member** | `team_member_id` (required) | Optional, handled via calendarIDs |
+| **Location** | `location_id` (required or auto-fetch) | Not supported |
+| **Timezone** | Specified in `start_at` (ISO format) | `date` parameter (YYYY-MM-DD) |
+| **Response Format** | Array of `availabilities` | Array of time objects per day |
+| **Results Limit** | Returns all available slots | Aggregated, sorted, top 1 returned |
+| **Default Timezone** | Not applicable (uses ISO) | America/Los_Angeles |
+
+---
+
+### 4.3.3 Parameters
+
+#### Required Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `agentId` | string | AI Agent ID |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description | Square | Acuity |
+|-----------|------|----------|-------------|--------|--------|
+| `requested_time` | string | Yes | Natural language time (e.g., "Friday, September 19, 2025 at 11:00:00 AM PDT") | ✅ Parsed to ISO | ✅ Parsed to date range |
+| `service_variation_id` | string | Yes (Square) | Service variation ID | ✅ Required | ❌ Use `appointmentTypeID` instead |
+| `appointmentTypeID` | string | Yes (Acuity) | Appointment type ID | ❌ | ✅ Required |
+| `team_member_id` | string | Yes (Square) | Team member ID | ✅ Required | ❌ Not used |
+| `location_id` | string | No | Location ID (auto-fetched if not provided for Square) | ✅ Supported | ❌ Not supported |
+| `timezone` | string | No | Timezone (default: America/Los_Angeles) | ✅ Used for display | ✅ Used for display |
+
+**Important Notes:**
+- ⚠️ Template variables (e.g., `{{location_id}}`) are automatically removed
+- For Square: If `location_id` not provided, the first available location is auto-fetched
+- For Acuity: `appointmentTypeID` and date range are required
+- The `requested_time` is parsed using chrono-node to handle natural language
+
+---
+
+### 4.3.4 Request Flow
+
+#### Square Flow
+```
+1. Parse requested_time → Convert to ISO format (start_at, end_at)
+2. If location_id missing → Fetch first available location
+3. Call POST /v2/bookings/availability/search with filter
+4. Sort results by start_at (earliest first)
+5. Return top 1 result with local time formatting
+```
+
+#### Acuity Flow
+```
+1. Parse requested_time → Convert to date range (startDate, endDate)
+2. Loop through each day in range:
+   - Call GET /api/v1/availability/times?appointmentTypeID={id}&date={date}
+   - Aggregate all results
+3. Filter and sort by time (earliest first)
+4. Return top 1 result with local time formatting
+```
+
+---
+
+### 4.3.5 Response Format & Unification
+
+#### Unified Response Structure
+
+Our backend transforms both Square and Acuity responses into a consistent format:
+```json
+{
+    "status": "success",
+    "data": [
+        {
+            "start_at": "2025-09-19T18:00:00.000Z",
+            "start_at_local": "09/19/2025, 11:00:00 AM",
+            "timezone": "America/Los_Angeles"
+        }
+    ]
+}
+```
+
+---
+
+#### Platform Response Comparison
+
+**Square Response Structure:**
+
+| API Call | Returns | Key Fields |
+|----------|---------|------------|
+| `/v2/bookings/availability/search` | Availability windows | `start_at`, `location_id`, `appointment_segments` |
+
+**Acuity Response Structure:**
+
+| API Call | Returns | Key Fields |
+|----------|---------|------------|
+| `/api/v1/availability/times` | Array of time slots per day | `time`, `slotsAvailable` |
+
+---
+
+#### Field Mapping Table
+
+| Our Backend Field | Square Source | Acuity Source | Notes |
+|-------------------|---------------|---------------|-------|
+| `start_at` | `availabilities[].start_at` | `time` (converted to ISO) | UTC time in ISO 8601 format |
+| `start_at_local` | Formatted from `start_at` | Formatted from `time` | Human-readable local time |
+| `timezone` | From query param or default | From query param or default | Default: America/Los_Angeles |
+
+---
+
+#### Transformation Examples
+
+**Square Transformation:**
+```javascript
+// Square returns availability windows
+
+// Square API Response
+{
+  "availabilities": [
+    {
+      "start_at": "2025-09-19T18:00:00Z",
+      "location_id": "L5J0TJ9CM5A7D",
+      "appointment_segments": [
+        {
+          "duration_minutes": 60,
+          "service_variation_id": "XYZ",
+          "team_member_id": "TM123",
+          "service_variation_version": 1
+        }
+      ]
+    },
+    {
+      "start_at": "2025-09-19T19:00:00Z",
+      ...
+    }
+  ]
+}
+
+// ↓ Backend transforms and returns top 1 ↓
+
+{
+  "status": "success",
+  "data": [
+    {
+      "start_at": "2025-09-19T18:00:00.000Z",
+      "start_at_local": "09/19/2025, 11:00:00 AM",
+      "timezone": "America/Los_Angeles"
+    }
+  ]
+}
+```
+
+**Acuity Transformation:**
+```javascript
+// Acuity returns times for each day queried
+
+// Day 1: Acuity API Response for 2025-09-19
+[
+  { "time": "2025-09-19T18:00:00-0700", "slotsAvailable": 3 },
+  { "time": "2025-09-19T19:00:00-0700", "slotsAvailable": 2 }
+]
+
+// Day 2: Acuity API Response for 2025-09-20
+[
+  { "time": "2025-09-20T18:00:00-0700", "slotsAvailable": 1 }
+]
+
+// ↓ Backend aggregates, sorts, and returns top 1 ↓
+
+{
+  "status": "success",
+  "data": [
+    {
+      "start_at": "2025-09-20T01:00:00.000Z",  // Converted to UTC
+      "start_at_local": "09/19/2025, 11:00:00 AM",
+      "timezone": "America/Los_Angeles"
+    }
+  ]
+}
+```
+
+---
+
+### 4.3.6 Response Examples
+
+#### Our Backend (Square) vs Square Platform API
+```json
+// Our Backend Response (Square)
+{
+    "status": "success",
+    "data": [
+        {
+            "start_at": "2025-11-07T19:00:00Z",
+            "start_at_local": "11/07/2025, 11:00:00 AM",
+            "timezone": "America/Los_Angeles"
+        }
+    ]
+}
+
+// Square Platform API Response
+
+{
+  "availabilities": [
+    {
+      "start_at": "2025-11-07T19:00:00Z",
+      "location_id": "L5J0TJ9CM5A7D",
+      "appointment_segments": [
+        {
+          "duration_minutes": 30,
+          "team_member_id": "TM5ctPKDQdXyuMpe",
+          "service_variation_id": "HDS3W67HMO5TQB32P3K4EUBY",
+          "service_variation_version": 1759213335949
+        }
+      ]
+    },
+    {
+      "start_at": "2025-11-07T19:30:00Z",
+      "location_id": "L5J0TJ9CM5A7D",
+      "appointment_segments": [
+        {
+          "duration_minutes": 30,
+          "team_member_id": "TM5ctPKDQdXyuMpe",
+          "service_variation_id": "HDS3W67HMO5TQB32P3K4EUBY",
+          "service_variation_version": 1759213335949
+        }
+      ]
+    }
+...
+```
+
+---
+
+#### Our Backend (Acuity) vs Acuity Platform API
+```json
+// Our Backend Response (Acuity)
+{
+    "status": "success",
+    "data": [
+        {
+            "start_at": "2025-11-07T19:00:00.000Z",
+            "start_at_local": "11/07/2025, 11:00:00 AM",
+            "timezone": "America/Los_Angeles"
+        }
+    ]
+}
+
+// Acuity Platform API Response
+[
+    {
+        "time": "2025-11-07T09:00:00-0800",
+        "slotsAvailable": 1
+    },
+    {
+        "time": "2025-11-07T09:10:00-0800",
+        "slotsAvailable": 1
+    },
+    {
+        "time": "2025-11-07T09:20:00-0800",
+        "slotsAvailable": 1
+    },
+    ...
+  
+]
+```
+
+---
+
+### 4.3.7 Error Handling
+
+#### Common Errors
+
+| Error | Status | Cause | Solution |
+|-------|--------|-------|----------|
+| "No active appointment integration found" | 500 | No Square/Acuity integration | Connect integration first |
+| "serviceId (appointmentTypeID) is required" | 500 | Missing service ID for Acuity | Provide `appointmentTypeID` |
+| "startDate is required" | 500 | Missing start date for Acuity | Provide valid `requested_time` |
+| "Failed to parse requested time" | 500 | Invalid time format | Use natural language format |
+| "No locations found for this agent" | 500 | No locations configured (Square) | Configure location in Square |
+
+---
+
+### 4.3.8 Implementation Notes
+
+#### Square-Specific Behavior
+- **Automatic Location Fetch**: If `location_id` not provided, automatically fetches the first available location
+- **ISO Time Parsing**: Uses chrono-node to parse natural language time to ISO 8601 format
+- **Single API Call**: Efficient single request to Square API
+- **Filtering**: Applies `segment_filters` with `service_variation_id` and `team_member_id`
+
+#### Acuity-Specific Behavior
+- **Multiple API Calls**: Makes one API call per day in the date range
+- **Date Loop**: Iterates from `startDate` to `endDate` (inclusive)
+- **Result Aggregation**: Combines all time slots from all days
+- **Top 1 Selection**: Sorts by time and returns earliest available slot
+- **No Location Support**: Acuity doesn't use location concept
+
+#### Performance Considerations
+- **Caching**: Both implementations support caching via `cacheMiddleware`
+- **Rate Limiting**: Acuity may hit rate limits with large date ranges (many days)
+- **Response Time**: 
+  - Square: ~200-500ms (single call)
+  - Acuity: ~(number_of_days × 200ms) for multiple calls
+
+---
+
+### 4.3.9 Usage Examples
+
+#### Example 1: Search availability with Square
+```bash
+GET /search-availability/agent-123?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&service_variation_id=5INFIVTTV5TNTOVFFIN73PGR&team_member_id=TM5ctPKDQdXyuMpe&location_id=L5J0TJ9CM5A7D&timezone=America/Los_Angeles
+```
+
+#### Example 2: Search availability with Acuity
+```bash
+GET /search-availability/agent-456?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&appointmentTypeID=12345&timezone=America/Los_Angeles
+```
+
+#### Example 3: Search with auto-fetched location (Square)
+```bash
+GET /search-availability/agent-123?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&service_variation_id=5INFIVTTV5TNTOVFFIN73PGR&team_member_id=TM5ctPKDQdXyuMpe
+# location_id will be auto-fetched
+```
+
+---
+
+### 4.3.10 Best Practices
+
+1. **Always specify timezone**: Explicitly provide timezone parameter to avoid confusion
+2. **Use natural language time**: Format like "Friday, September 19, 2025 at 11:00:00 AM PDT"
+3. **Handle empty results**: Check if `data` array is empty (no availability found)
+4. **For Square**: Prefer providing `location_id` to avoid extra API call
+5. **For Acuity**: Keep date ranges reasonable (≤30 days) to avoid too many API calls
+6. **Cache results**: Results are cached, so repeated queries are faster
+7. **Error handling**: Always handle potential errors gracefully
 
 **API References:**
 - Square Team Members Search: https://developer.squareup.com/reference/square/team-api/search-team-members
