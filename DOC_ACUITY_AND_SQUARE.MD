@@ -127,9 +127,6 @@ This layer abstracts the differences between provider-specific customer manageme
 | **Square** | `https://connect.squareup.com` |
 | **Acuity** | `https://acuityscheduling.com` |
 
-## Authentication
-
-All endpoints require Bearer Token authentication
 
 ## 3.1 Overview of Routes
 
@@ -161,6 +158,11 @@ All endpoints require Bearer Token authentication
 **Important** Acuity check duplicate client based on firstname and lastname
 If firstname and lastname are duplicated, it will return 400
 
+**Key Differences:**
+- Square returns `id`, Acuity may not
+- Phone format: Square uses E.164, Acuity uses US display format
+- last name: Square uses `""`, Acuity uses `"dummy-{random 3 digits}"` (string)
+- email : Square uses `""`, Acuity uses `"contact@callpal.app"` (temporary)
 
 ### 3.2.2 Parameters
 
@@ -283,10 +285,7 @@ Acuity platform:
 
  ```
 
-**Key Differences:**
-- Square returns `id`, Acuity may not
-- Phone format: Square uses E.164, Acuity uses US display format
-- Empty values: Square uses `""`, Acuity uses `"dummy-{random 3 digits}"` (string)
+
 
 **API References:**
 - Square Create Customer: https://developer.squareup.com/reference/square/customers-api/create-customer
@@ -853,6 +852,9 @@ GET /api/customers/retrieve/AGENT_ID/%2B14087775678
 ---
 
 
+
+
+
 ## 4. Business Catalog APIs
 
 The Business Catalog APIs provide a standardized interface for discovering and browsing business information across **Square** and **Acuity Scheduling** platforms.
@@ -874,10 +876,6 @@ Unlike the Customer APIs, these endpoints **do not normalize input** - they retu
 | **Our Backend** | `https://your-api.com/api/business-catalog` |
 | **Square** | `https://connect.squareup.com` |
 | **Acuity** | `https://acuityscheduling.com` |
-
-## Authentication
-
-All endpoints require Bearer Token authentication
 
 ## 4.1 Overview of Routes
 
@@ -911,30 +909,7 @@ All endpoints require Bearer Token authentication
     - For compatibility with our location-based system, we construct a single location from the business profile data
     - Location ID format: `acuity-{businessId}`
     - Coordinates are derived from the business address using Google Maps Geocoding API
-
-
-### 4.2.2 Platform API Calls
-
-#### Square API Call
-```javascript
-// Square Locations API
-GET https://connect.squareup.com/v2/locations
-Headers:
-  Authorization: Bearer {access_token}
-  Square-Version: 2025-08-20
-  Content-Type: application/json
-```
-
-**Square API Reference:** https://developer.squareup.com/reference/square/locations-api/list-locations
-
-#### Acuity API Call
-```javascript
-// Acuity doesn't have a locations API
-// Backend constructs location from business.address in database
-// Uses Google Maps API to geocode address if coordinates not available
-```
-
-**Acuity Note:** Acuity uses a single business address, not multiple locations like Square franchises.
+    
 
 ### 4.2.3 Parameters
 **Platform-Specific Behavior:**
@@ -1077,11 +1052,12 @@ Our Backend (Acuity)
         "totalCount": 1
     }
 }
-**Note**
-Acuity does have Locations API
+
 
 ```
 ---
+**Square API Reference:** https://developer.squareup.com/reference/square/locations-api/list-locations
+
 
 ## 4.3 Search Nearby Locations
 
@@ -1112,12 +1088,187 @@ GET https://connect.squareup.com/v2/locations
 // For Acuity:
 // Constructs location from business.address
 
-// 3. Calculate distances using haversine formula
-// 4. Sort by distance and return top 3
+```
+### 4.3.3 Response Examples
+**Our Backend (Square) VS Square platform API**
+```
+Our Backend (Square)
+{
+    "status": "success",
+    "data": {
+        "locations": [
+            {
+                "id": "LVTFQSKY6DKB3",
+                "name": "call_pal",
+                "street": "3768 Fallon Rd",
+                "city": "Walnut Creek",
+                "state": "CA",
+                "timezone": "America/Los_Angeles"
+            },
+            {
+                "id": "L5J0TJ9CM5A7D",
+                "name": "CallPal",
+                "street": "7446 San Ramon Rd",
+                "city": "Dublin",
+                "state": "CA",
+                "timezone": "America/Los_Angeles"
+            }
+        ],
+        "totalCount": 2
+    }
+}
+
+
+
+Square Platform API 
+
+{
+  "locations": [
+    {
+      "id": "L5J0TJ9CM5A7D",
+      "name": "CallPal",
+      "address": {
+        "address_line_1": "7446 San Ramon Rd",
+        "locality": "Dublin",
+        "administrative_district_level_1": "CA",
+        "postal_code": "94568-2338",
+        "country": "US"
+      },
+      "timezone": "America/Los_Angeles",
+      "capabilities": [
+        "AUTOMATIC_TRANSFERS"
+      ],
+      "status": "ACTIVE",
+      "created_at": "2025-09-12T19:42:43.337Z",
+      "merchant_id": "ML37W5FN1K9A8",
+      "country": "US",
+      "language_code": "en-US",
+      "currency": "USD",
+      "business_name": "CallPal",
+      "type": "MOBILE",
+      "business_hours": {
+        "periods": [
+          {
+            "day_of_week": "MON",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "TUE",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "WED",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "THU",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "FRI",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          }
+        ]
+      },
+      "business_email": "XX.XX@gmail.com",
+      "coordinates": {
+        "latitude": 37.7069067,
+        "longitude": -121.9375056
+      },
+      "mcc": "7372"
+    },
+    {
+      "id": "LVTFQSKY6DKB3",
+      "name": "call_pal",
+      "address": {
+        "address_line_1": "3768 Fallon Rd",
+        "locality": "Walnut Creek",
+        "administrative_district_level_1": "CA",
+        "postal_code": "94596",
+        "country": "US"
+      },
+      "timezone": "America/Los_Angeles",
+      "capabilities": [
+        "AUTOMATIC_TRANSFERS"
+      ],
+      "status": "ACTIVE",
+      "created_at": "2025-10-31T23:08:15.702Z",
+      "merchant_id": "ML37W5FN1K9A8",
+      "country": "US",
+      "language_code": "en-US",
+      "currency": "USD",
+      "business_name": "CallPal",
+      "type": "MOBILE",
+      "business_hours": {
+        "periods": [
+          {
+            "day_of_week": "MON",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "TUE",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "WED",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "THU",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          },
+          {
+            "day_of_week": "FRI",
+            "start_local_time": "09:00:00",
+            "end_local_time": "17:00:00"
+          }
+        ]
+      },
+      "business_email": "XX.XX@gmail.com",
+      "coordinates": {
+        "latitude": 37.7044411,
+        "longitude": -121.8516132
+      },
+      "mcc": "7372"
+    }
+  ]
+}
+
+```
+
+**Our Backend (Acuity) vs Acuity Platform API**
+```
+Our Backend (Acuity)
+{
+    "status": "success",
+    "data": {
+        "locations": [
+            {
+                "id": "acuity-cmhhaybmc000ap9cvlwti6y72",
+                "name": "Austin Louis Salon",
+                "street": "7446 San Ramon Rd",
+                "city": "Dublin",
+                "state": "CA",
+                "timezone": "UTC"
+            }
+        ],
+        "totalCount": 1
+    }
+}
+
+Acuity does not have Location API
 ```
 
 
-### 4.3.3 Response Examples
 
 ## 4.4 List Service Types
 
@@ -1583,23 +1734,21 @@ Acuity Platform API
 
 The Unified Appointments APIs provide a standardized interface for managing appointments and bookings across **Square Appointments** and **Acuity Scheduling** platforms. 
 This layer abstracts the differences between provider-specific APIs, allowing you to use a single set of endpoints regardless of which scheduling platform is connected to your agent.
-
-### **Summary**: 
 **Supported Operations:**
 
 #### Availability & Discovery
 1. **List Team Members** - Get bookable staff members and their profiles
 2. **Search Availability** - Find available time slots for appointments
 
-
 #### Booking Management
 3. **Create Booking** - Book a new appointment
-4. **Retrieve Booking** - Get details of a specific appointment
-5. **Cancel Booking** - Cancel a specific appointment
+4. **Cancel Booking** - Cancel a specific appointment
 
 #### Customer-Specific Operations
-6. **Customer Bookings** - List all future appointments for a specific customer
-7. **Cancel by Customer** - Cancel all appointments for a specific customer
+5. **List Customer Bookings** - List all future appointments for a specific customer
+
+
+
 
 ## Base URLs
 
@@ -1609,12 +1758,33 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 | **Square** | `https://connect.squareup.com` |
 | **Acuity** | `https://acuityscheduling.com` |
 
-## Authentication
-All endpoints require Bearer Token authentication
 
-## 5.1 List Team Members
+## 5.1 Overview of Routes
 
-### 5.1.1 Platform Comparison
+| # | Backend Route | Method | Description | Returns |
+|---|---------------|--------|-------------|---------|
+| **Availability & Discovery** |
+| 1 | `/team-members/:agentId` | GET | Get bookable team members/staff | Array of specialists with cursor |
+| 2 | `/search-availability/:agentId` | GET | Search available time slots | Array of available slots |
+| **Booking Management** |
+| 3 | `/bookings/:agentId` | POST | Create new appointment booking | Booking confirmation object |
+| 4 | `/bookings/:agentId/:bookingId/cancel` | POST | Cancel specific booking | Cancellation confirmation |
+| **Customer-Specific Operations** |
+| 5 | `/bookings/:agentId/customer/:customer_id` | GET | List future bookings for customer | Array of customer bookings (max 2) |
+
+**Global Notes:**
+- All endpoints require Bearer Token authentication
+- All booking responses include `status` field
+- Team members endpoint includes `cursor` for pagination (Square only)
+- Search availability includes timezone support (default: `America/Los_Angeles`)
+- Customer bookings limited to top 2 future appointments
+- Template variables (e.g., `{{location_id}}`) are automatically validated and removed
+
+---
+
+## 5.2 List Team Members
+
+### 5.2.1 Platform Comparison
 
 | Platform | Endpoint | Method |
 |----------|----------|--------|
@@ -1629,12 +1799,12 @@ All endpoints require Bearer Token authentication
 
 ---
 
-### 5.1.2 Key Differences Summary
+### 5.2.2 Key Differences Summary
 
 | Aspect | Square | Acuity |
 |--------|--------|--------|
 | **Concept** | Team Members (employees) | Calendars (resources/staff) |
-| **API Calls Required** | 2 calls (search + profiles) | 1-2 calls (calendars + optional types) |
+| **API Calls Required** | 2 calls (search + profiles) | 1 call (calendars) |
 | **Filtering by Location** | ✅ `location_ids` in search query | ❌ Not supported |
 | **Filtering by Service** | ❌ Not supported | ✅ `appointmentTypeID` + `calendarIDs` matching |
 | **Bookability Check** | `is_bookable` field in profile | All calendars are bookable by default |
@@ -1663,149 +1833,195 @@ All endpoints require Bearer Token authentication
    - For each calendar, checks if `appointmentTypeID` is in its `calendarIDs` array
    - Only includes matching calendars
 
-### 5.1.3 Parameters
+### 5.2.3 Response Format & Unification
 
-#### Our Backend Query Parameters
+#### Unified Response Structure
 
-**Default Parameters (if none provided):**
-```javascript
+Our backend transforms both Square and Acuity responses into a consistent format:
+```json
 {
-    bookable_only: true,  // Only return bookable team members
-    limit: 6              // Maximum 6 results
-}
-```
-
-**Optional Parameters:**
-
-| Parameter | Type | Description | Default Value |
-|-----------|------|-------------|---------------|
-| `bookable_only` | boolean | Only return bookable team members | `true` |
-| `limit` | integer | Maximum results to return | `6` |
-| `cursor` | string | Pagination cursor | - |
-| `location_id` | string | Filter by location | - |
-| `appointmentTypeID` | integer | Filter by appointment type | - |
-
----
-
-#### Platform Parameter Comparison
-
-| Parameter | Our Backend | Square | Acuity | Unified Mapping |
-|-----------|-------------|--------|--------|-----------------|
-| **Location Filter** | `location_id` | `query.filter.location_ids` (array) | ❌ Not supported | Backend sends to Square only |
-| **Service Filter** | `appointmentTypeID` | ❌ Not supported | Filters via `calendarIDs` matching | Backend sends to Acuity only |
-| **Pagination Limit** | `limit` | `limit` | ❌ Not supported | Backend sends to Square only |
-| **Pagination Cursor** | `cursor` | `cursor` | ❌ Not supported | Backend sends to Square only |
-| **Bookability Filter** | `bookable_only` (default: true) | Backend filters by `is_bookable` field | All calendars bookable by default | Backend applies filter after API response |
-
-**Legend:**
-- ✅ = Supported
-- ❌ = Not supported
-
----
-
-#### Unified Parameter Handling
-
-**For Square Integration:**
-```javascript
-// Backend transforms parameters for Square API
-
-// Step 1: Build search request
-const searchRequest = {
-    query: {
-        filter: {
-            status: "ACTIVE"
-        }
+    "status": "success",
+    "data": {
+        "specialists": [
+            {
+                "specialist_id": "...",
+                "name": "..."
+            }
+        ],
+        "cursor": null,
+        "errors": []
     }
-};
-
-// Add location filter if provided
-if (options.location_id && !isTemplateVariable(options.location_id)) {
-    searchRequest.query.filter.location_ids = [options.location_id];
 }
-
-// Add pagination
-if (options.limit) {
-    searchRequest.limit = options.limit;  // Default: 6
-}
-if (options.cursor) {
-    searchRequest.cursor = options.cursor;
-}
-
-// Step 2: Call Square APIs (search + profiles)
-// Step 3: Backend filters by is_bookable if bookable_only=true
 ```
 
-**For Acuity Integration:**
+---
+
+#### Platform Response Comparison
+
+**Square Response Structure:**
+
+Square requires **two API calls** with different response structures:
+
+| API Call | Returns | Key Fields |
+|----------|---------|------------|
+| `/v2/team-members/search` | Team member details | `id`, `given_name`, `family_name`, `status`, `assigned_locations` |
+| `/v2/bookings/team-member-booking-profiles` | Booking configuration | `team_member_id`, `display_name`, `is_bookable` |
+
+**Acuity Response Structure:**
+
+Acuity uses **one API call** with a flat structure:
+
+| API Call | Returns | Key Fields |
+|----------|---------|------------|
+| `/api/v1/calendars` | Calendar (staff) list | `id`, `name`, `email`, `timezone` |
+
+---
+
+#### Field Mapping Table
+
+| Our Backend Field | Square Source | Acuity Source | Notes |
+|-------------------|---------------|---------------|-------|
+| `specialist_id` | `team_members[].id` | `calendars[].id` | Direct mapping |
+| `name` | `team_member_booking_profiles[].display_name` | `calendars[].name` | ⚠️ Square uses `display_name` from profiles, not `given_name`/`family_name` from team members |
+| `cursor` | `team_members.cursor` | Always `null` | ⚠️ Acuity doesn't support pagination |
+| `errors` | Combined from both API calls | `[]` (empty array) | Square may return errors array |
+
+---
+
+#### Transformation Examples
+
+**Square Transformation:**
 ```javascript
-// Backend transforms parameters for Acuity API
+// Square returns TWO separate responses that need to be combined
 
-// Step 1: Get all calendars (no parameters needed)
-const calendars = await fetch('/api/v1/calendars');
-
-// Step 2: If appointmentTypeID provided, filter calendars
-if (options.appointmentTypeID) {
-    const appointmentTypes = await fetch('/api/v1/appointment-types');
-    
-    // Filter calendars that support this appointment type
-    calendars = calendars.filter(calendar => {
-        const type = appointmentTypes.find(t => t.id === options.appointmentTypeID);
-        return type && type.calendarIDs.includes(calendar.id);
-    });
+// Response 1: Team Members Search
+{
+  "team_members": [
+    {
+      "id": "TM5ctPKDQdXyuMpe",
+      "given_name": "Alice",
+      "family_name": "Wong",
+      "status": "ACTIVE"
+    }
+  ]
 }
 
-// Note: Acuity doesn't support limit/cursor pagination
-// Note: All Acuity calendars are considered bookable
+// Response 2: Booking Profiles
+{
+  "team_member_booking_profiles": [
+    {
+      "team_member_id": "TM5ctPKDQdXyuMpe",
+      "display_name": "Alice Wong",
+      "is_bookable": true
+    }
+  ]
+}
+
+// ↓ Backend combines and transforms ↓
+
+{
+  "status": "success",
+  "data": {
+    "specialists": [
+      {
+        "specialist_id": "TM5ctPKDQdXyuMpe",  // from team_members[].id
+        "name": "Alice Wong"                   // from booking_profiles[].display_name
+      }
+    ],
+    "cursor": null,
+    "errors": []
+  }
+}
+```
+
+**Acuity Transformation:**
+```javascript
+// Acuity returns ONE flat response
+
+{
+  "calendars": [
+    {
+      "id": 12874092,
+      "name": "Lucy",
+      "email": "",
+      "timezone": "America/Los_Angeles"
+    }
+  ]
+}
+
+// ↓ Backend transforms ↓
+
+{
+  "status": "success",
+  "data": {
+    "specialists": [
+      {
+        "specialist_id": 12874092,  // from calendars[].id
+        "name": "Lucy"               // from calendars[].name
+      }
+    ],
+    "cursor": null,  // Acuity doesn't support pagination
+    "errors": []
+  }
+}
 ```
 
 ---
 
-#### Parameter Processing Rules
+#### Key Unification Decisions
 
-**Template Variable Validation:**
-- ⚠️ Backend validates `location_id` and `appointmentTypeID` to ensure they are not template variables
-- If template variables like `{{location_id}}` are detected, they are removed from options
-- This prevents invalid API calls to Square/Acuity
+**1. specialist_id vs team_member_id vs calendar_id**
 
-**Type Conversions:**
-- `bookable_only`: String `"true"`/`"false"` → Boolean
-- `limit`: String → Integer
-- `appointmentTypeID`: String → Integer
+| Platform | Original Field Name | Unified As |
+|----------|---------------------|------------|
+| Square | `team_members[].id` | `specialist_id` |
+| Acuity | `calendars[].id` | `specialist_id` |
 
-**Platform-Specific Processing:**
-
-| Processing | Square | Acuity |
-|------------|--------|--------|
-| **Location filtering** | ✅ Sent directly to API | ❌ Parameter ignored |
-| **Service filtering** | ❌ Not applicable | ✅ Backend filters via `calendarIDs` matching |
-| **Pagination** | ✅ Sent directly to API | ❌ Backend returns all results |
-| **Bookability filtering** | ✅ Backend filters `is_bookable: true` | ⭕ All calendars bookable (no filtering needed) |
-
-**Legend:**
-- ✅ = Supported and processed
-- ❌ = Not supported
-- ⭕ = Not needed
+**Reason:** "specialist" is platform-agnostic terminology that works for both employee-based (Square) and resource-based (Acuity) models.
 
 ---
 
-#### Why This Unified Design?
+**2. Name Field Selection**
 
-**Problem:** Square and Acuity have completely different filtering mechanisms:
-- Square supports location filtering but not service filtering
-- Acuity supports service filtering (via calendar matching) but not location filtering
-- Square has bookability flags, Acuity assumes all calendars are bookable
-- Square has pagination, Acuity returns all results
+| Platform | Available Fields | We Use | Why |
+|----------|------------------|--------|-----|
+| Square | `given_name`, `family_name` (from team members) <br> `display_name` (from booking profiles) | `display_name` | ✅ This is what customers see when booking <br> ✅ Can be customized separately from legal name <br> ✅ May be empty string if not configured |
+| Acuity | `name` (from calendars) | `name` | ✅ This is the calendar's display name <br> ✅ What customers see when booking |
 
-**Solution:** Our backend provides a unified interface that:
-1. **Accepts all filter types** (`location_id`, `appointmentTypeID`, `limit`, `cursor`)
-2. **Routes parameters appropriately** based on active integration
-3. **Applies backend-side filtering** when platform doesn't support it natively
-4. **Returns consistent response format** regardless of platform
+**Important:** Square's `display_name` may be an empty string `" "` if not configured. We keep this as-is rather than falling back to `given_name`/`family_name` to maintain consistency with what booking customers see.
 
-This allows the same API call to work across both platforms without frontend code changes.
+---
+
+**3. Cursor & Pagination**
+
+| Platform | Pagination Support | Cursor Value |
+|----------|-------------------|--------------|
+| Square | ✅ Yes (cursor-based) | Returns actual cursor string or `null` |
+| Acuity | ❌ No (returns all) | Always `null` |
+
+**Unified Behavior:** Always include `cursor` field in response. Value is `null` when no more results (Square) or pagination not supported (Acuity).
 
 
 
-### 5.1.4 Response Examples
+---
+
+### 5.2.4 Parameters
+
+**Optional Query Parameters:**
+
+| Parameter | Type | Description | Square | Acuity |
+|-----------|------|-------------|--------|--------|
+| `location_id` | string | Filter by location | ✅ Supported | ❌ Not supported |
+| `appointmentTypeID` | integer | Filter by service type | ❌ Not supported | ✅ Supported |
+| `limit` | integer | Max results (default: 6) | ✅ Supported | ❌ Not supported |
+| `cursor` | string | Pagination cursor | ✅ Supported | ❌ Not supported |
+
+**Parameter Processing:**
+- ⚠️ Template variables (e.g., `{{location_id}}`) are automatically removed
+- Type conversions applied automatically (`limit` → integer, etc.)
+- Platform-specific parameters only sent to supporting platform
+
+### 5.2.5 Response Examples
 
 **Our Backend (Square) vs Square Platform API**
 ```json
@@ -1967,32 +2183,8 @@ Acuity Platform API (Calendars)
 
 ```
 
-**Transformation Logic (Acuity):**
-```javascript
-// If appointmentTypeID provided, filter calendars
-if (options.appointmentTypeID) {
-    // Get appointment types for each calendar
-    const appointmentTypes = await this.getAppointmentTypes(accessToken, calendar.id);
-    
-    // Check if calendar supports this appointment type
-    const hasAppointmentType = appointmentTypes.some(
-        type => type.id === parseInt(options.appointmentTypeID)
-    );
-    
-    if (!hasAppointmentType) {
-        continue; // Skip this calendar
-    }
-}
-
-specialists.push({
-    specialist_id: calendar.id,
-    name: calendar.name
-});
-```
 
 ---
-
-
 
 **API References:**
 - Square Team Members Search: https://developer.squareup.com/reference/square/team-api/search-team-members
