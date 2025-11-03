@@ -1763,13 +1763,10 @@ This layer abstracts the differences between provider-specific APIs, allowing yo
 
 | # | Backend Route | Method | Description | Returns |
 |---|---------------|--------|-------------|---------|
-| **Availability & Discovery** |
 | 1 | `/team-members/:agentId` | GET | Get bookable team members/staff | Array of specialists with cursor |
 | 2 | `/search-availability/:agentId` | GET | Search available time slots | Array of available slots |
-| **Booking Management** |
 | 3 | `/bookings/:agentId` | POST | Create new appointment booking | Booking confirmation object |
 | 4 | `/bookings/:agentId/:bookingId/cancel` | POST | Cancel specific booking | Cancellation confirmation |
-| **Customer-Specific Operations** |
 | 5 | `/bookings/:agentId/customer/:customer_id` | GET | List future bookings for customer | Array of customer bookings (max 2) |
 
 **Global Notes:**
@@ -2316,80 +2313,8 @@ Our backend transforms both Square and Acuity responses into a consistent format
 
 ---
 
-#### Transformation Examples
 
-**Square Transformation:**
-```javascript
-// Square returns availability windows
-
-// Square API Response
-{
-  "availabilities": [
-    {
-      "start_at": "2025-09-19T18:00:00Z",
-      "location_id": "L5J0TJ9CM5A7D",
-      "appointment_segments": [
-        {
-          "duration_minutes": 60,
-          "service_variation_id": "XYZ",
-          "team_member_id": "TM123",
-          "service_variation_version": 1
-        }
-      ]
-    },
-    {
-      "start_at": "2025-09-19T19:00:00Z",
-      ...
-    }
-  ]
-}
-
-// ↓ Backend transforms and returns top 1 ↓
-
-{
-  "status": "success",
-  "data": [
-    {
-      "start_at": "2025-09-19T18:00:00.000Z",
-      "start_at_local": "09/19/2025, 11:00:00 AM",
-      "timezone": "America/Los_Angeles"
-    }
-  ]
-}
-```
-
-**Acuity Transformation:**
-```javascript
-// Acuity returns times for each day queried
-
-// Day 1: Acuity API Response for 2025-09-19
-[
-  { "time": "2025-09-19T18:00:00-0700", "slotsAvailable": 3 },
-  { "time": "2025-09-19T19:00:00-0700", "slotsAvailable": 2 }
-]
-
-// Day 2: Acuity API Response for 2025-09-20
-[
-  { "time": "2025-09-20T18:00:00-0700", "slotsAvailable": 1 }
-]
-
-// ↓ Backend aggregates, sorts, and returns top 1 ↓
-
-{
-  "status": "success",
-  "data": [
-    {
-      "start_at": "2025-09-20T01:00:00.000Z",  // Converted to UTC
-      "start_at_local": "09/19/2025, 11:00:00 AM",
-      "timezone": "America/Los_Angeles"
-    }
-  ]
-}
-```
-
----
-
-### 4.3.6 Response Examples
+### 4.3.5 Response Examples
 
 #### Our Backend (Square) vs Square Platform API
 ```json
@@ -2453,21 +2378,15 @@ Our backend transforms both Square and Acuity responses into a consistent format
 }
 
 // Acuity Platform API Response
+// Day 1: Acuity API Response for 2025-09-19
 [
-    {
-        "time": "2025-11-07T09:00:00-0800",
-        "slotsAvailable": 1
-    },
-    {
-        "time": "2025-11-07T09:10:00-0800",
-        "slotsAvailable": 1
-    },
-    {
-        "time": "2025-11-07T09:20:00-0800",
-        "slotsAvailable": 1
-    },
-    ...
-  
+  { "time": "2025-09-19T18:00:00-0700", "slotsAvailable": 1 },
+  { "time": "2025-09-19T19:00:00-0700", "slotsAvailable": 1 }
+]
+
+// Day 2: Acuity API Response for 2025-09-20
+[
+  { "time": "2025-09-20T18:00:00-0700", "slotsAvailable": 1 }
 ]
 ```
 
@@ -2487,59 +2406,6 @@ Our backend transforms both Square and Acuity responses into a consistent format
 
 ---
 
-### 4.3.8 Implementation Notes
-
-#### Square-Specific Behavior
-- **Automatic Location Fetch**: If `location_id` not provided, automatically fetches the first available location
-- **ISO Time Parsing**: Uses chrono-node to parse natural language time to ISO 8601 format
-- **Single API Call**: Efficient single request to Square API
-- **Filtering**: Applies `segment_filters` with `service_variation_id` and `team_member_id`
-
-#### Acuity-Specific Behavior
-- **Multiple API Calls**: Makes one API call per day in the date range
-- **Date Loop**: Iterates from `startDate` to `endDate` (inclusive)
-- **Result Aggregation**: Combines all time slots from all days
-- **Top 1 Selection**: Sorts by time and returns earliest available slot
-- **No Location Support**: Acuity doesn't use location concept
-
-#### Performance Considerations
-- **Caching**: Both implementations support caching via `cacheMiddleware`
-- **Rate Limiting**: Acuity may hit rate limits with large date ranges (many days)
-- **Response Time**: 
-  - Square: ~200-500ms (single call)
-  - Acuity: ~(number_of_days × 200ms) for multiple calls
-
----
-
-### 4.3.9 Usage Examples
-
-#### Example 1: Search availability with Square
-```bash
-GET /search-availability/agent-123?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&service_variation_id=5INFIVTTV5TNTOVFFIN73PGR&team_member_id=TM5ctPKDQdXyuMpe&location_id=L5J0TJ9CM5A7D&timezone=America/Los_Angeles
-```
-
-#### Example 2: Search availability with Acuity
-```bash
-GET /search-availability/agent-456?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&appointmentTypeID=12345&timezone=America/Los_Angeles
-```
-
-#### Example 3: Search with auto-fetched location (Square)
-```bash
-GET /search-availability/agent-123?requested_time=Friday%2C%20September%2019%2C%202025%20at%2011%3A00%3A00%20AM%20PDT&service_variation_id=5INFIVTTV5TNTOVFFIN73PGR&team_member_id=TM5ctPKDQdXyuMpe
-# location_id will be auto-fetched
-```
-
----
-
-### 4.3.10 Best Practices
-
-1. **Always specify timezone**: Explicitly provide timezone parameter to avoid confusion
-2. **Use natural language time**: Format like "Friday, September 19, 2025 at 11:00:00 AM PDT"
-3. **Handle empty results**: Check if `data` array is empty (no availability found)
-4. **For Square**: Prefer providing `location_id` to avoid extra API call
-5. **For Acuity**: Keep date ranges reasonable (≤30 days) to avoid too many API calls
-6. **Cache results**: Results are cached, so repeated queries are faster
-7. **Error handling**: Always handle potential errors gracefully
 
 **API References:**
 - Square Team Members Search: https://developer.squareup.com/reference/square/team-api/search-team-members
